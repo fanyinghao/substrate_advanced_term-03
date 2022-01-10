@@ -18,7 +18,7 @@ const constructKitty = (id, { dna, price, gender, owner, deposit }) => ({
   deposit: deposit.toJSON()
 })
 
-export default function Kitties (props) {
+export default function Kitties(props) {
   const { api, keyring } = useSubstrate()
   const { accountPair } = props
 
@@ -38,6 +38,28 @@ export default function Kitties (props) {
       unSub = await api.query.kittiesModule.kittiesCount(async count => {
         setKittyCount(count.toJSON())
       })
+
+      const kitties = await api.query.kittiesModule.kitties.entries()
+      const owners = await api.query.kittiesModule.owner.entries()
+      console.log('owners', owners)
+
+      const ownerMap = {}
+      owners.forEach(owner => {
+        ownerMap[owner[0].toJSON()] = owner[0].toJSON()
+      })
+      console.log('ownerMap', ownerMap)
+
+      const result = kitties.map((item, idx) => {
+        const key = item[0].toJSON()
+        return {
+          id: idx,
+          dna: item[0].slice(32),
+          owner: item[0].toJSON().slice(0, 32)
+        }
+      })
+      console.log('result', result)
+
+      setKitties(result)
     }
 
     asyncFetch()
@@ -57,11 +79,20 @@ export default function Kitties (props) {
     //  ```
     // 这个 kitties 会传入 <KittyCards/> 然后对每只猫咪进行处理
 
-
     const asyncFetch = async () => {
       const kitties = await api.query.kittiesModule.kitties.entries()
       console.log('arr', kitties)
-      setKitties(kitties)
+      setKitties(kitties.map(async (item, idx) => {
+        const key = item[0].toJSON()
+        console.log('key', key)
+        const owner = await api.query.kittiesModule.owner.entriesAt(key, 1)
+        console.log('ownder', key, owner)
+        return {
+          id: idx,
+          dna: item[1].toJSON(),
+          owner: key.toJSON()
+        }
+      }))
     }
 
     // asyncFetch()
@@ -73,11 +104,11 @@ export default function Kitties (props) {
   }
 
   useEffect(fetchKitties, [api, keyring])
-  useEffect(populateKitties, [api, kittyCount])
+  // useEffect(populateKitties, [api, kittyCount])
 
   return <Grid.Column width={16}>
     <h1>小毛孩</h1>
-    <KittyCards kitties={kitties} accountPair={accountPair} setStatus={setStatus}/>
+    <KittyCards kitties={kitties} accountPair={accountPair} setStatus={setStatus} />
     <Form style={{ margin: '1em 0' }}>
       <Form.Field style={{ textAlign: 'center' }}>
         <TxButton
